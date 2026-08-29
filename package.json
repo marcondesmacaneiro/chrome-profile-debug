@@ -1,0 +1,19 @@
+{
+  "name": "chrome-profile-debug",
+  "version": "0.1.0",
+  "description": "Drive any of your named Chrome profiles from an MCP client",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "cpd-server": "./server/index.js",
+    "cpd-host": "./host/host.js"
+  },
+  "scripts": {
+    "install-host": "node scripts/install-host.js",
+    "test": "node --test test/"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Chrome Profile Debug",
+  "version": "0.1.0",
+  "description": "Expose this Chrome profile to a local MCP server under a name you choose.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "debugger",
+    "tabs",
+    "nativeMessaging",
+    "storage",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Chrome Profile Debug",
+    "default_popup": "popup.html"
+  }
+}
