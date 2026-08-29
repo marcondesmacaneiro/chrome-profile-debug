@@ -77,7 +77,11 @@ Every message is a JSON object with a `type` field.
 `connectNative` until a name exists. This makes every profile opt-in.
 
 If two connected profiles report the same `name`, the server keeps the first and
-replies with `{"type":"error","code":"DUPLICATE_NAME"}`, then closes.
+replies with `{"type":"error","code":"DUPLICATE_NAME"}`, then closes — **unless**
+the newcomer reports the same `profile.id`. That is the same profile
+reconnecting, not a collision: a host killed abruptly leaves a half-open socket
+that still looks alive, so the server replaces the stale connection instead of
+refusing the newcomer into a reconnect loop.
 
 ### `request` — server to host to extension
 

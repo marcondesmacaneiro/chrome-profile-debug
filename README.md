@@ -12,9 +12,9 @@ call `staging`".
 This does. You name each profile once, and every tool call takes that name.
 
 ```
-list_profiles()            → ["personal", "staging", "prod-readonly"]
-navigate(profile: "staging", url: "https://app.example.com")
-read_page(profile: "staging")
+list_profiles()                → ["personal", "staging", "prod-readonly"]
+new_tab(profile: "staging", url: "https://app.example.com")   → { tabId: 42 }
+read_page(profile: "staging", tabId: 42)
 ```
 
 No listening TCP port. No telemetry. No Chrome Web Store account required.

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Chrome Profile Debug</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --border: #b9bcc2;
+        --muted: #5c6069;
+        --surface: #ffffff;
+        --text: #16181d;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --border: #4a4e57;
+          --muted: #a3a8b3;
+          --surface: #1d1f24;
+          --text: #f0f1f4;
+        }
+      }
+
+      body {
+        background: var(--surface);
+        color: var(--text);
+        font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 14px;
+        width: 280px;
+      }
+
+      h1 {
+        font-size: 13px;
+        font-weight: 600;
+        margin: 0 0 10px;
+      }
+
+      label {
+        color: var(--muted);
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .row {
+        display: flex;
+        gap: 6px;
+      }
+
+      input {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: inherit;
+        flex: 1;
+        font: inherit;
+        min-width: 0;
+        padding: 5px 7px;
+      }
+
+      button {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        padding: 5px 12px;
+      }
+
+      button:hover {
+        border-color: var(--muted);
+      }
+
+      #status {
+        color: var(--muted);
+        margin: 10px 0 0;
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Chrome Profile Debug</h1>
+    <label for="profile-name">Profile name</label>
+    <div class="row">
+      <input id="profile-name" type="text" autocomplete="off" spellcheck="false" placeholder="staging" />
+      <button id="save" type="button">Save</button>
+    </div>
+    <p id="status">Connecting...</p>
+    <script src="popup.js"></script>
+  </body>
+</html>
