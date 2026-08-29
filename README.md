@@ -63,29 +63,31 @@ In **each** Chrome profile, separately:
 1. Open `chrome://extensions`
 2. Turn on **Developer mode**
 3. Click **Load unpacked** and select the `extension/` directory
-4. Copy the extension ID that appears
 
-You do **not** need to publish to the Chrome Web Store. Loading unpacked is
-permanent for personal use; the store only matters for distributing to other
-people.
+The extension always gets the same ID, whether it was loaded from source or
+installed from the Chrome Web Store:
+
+```
+clkflehjfcefahjgchgcomflocccphnj
+```
+
+That is because `extension/manifest.json` pins the public key. Without it, an
+unpacked extension's ID derives from its absolute path and would differ on
+every machine.
 
 ### 3. Register the native messaging host
 
-Once per machine, using the ID from the previous step:
+Once per machine:
 
 ```bash
-npm run install-host -- --extension-id <ID>
+npm run install-host -- --extension-id clkflehjfcefahjgchgcomflocccphnj
 ```
 
 This writes a manifest into Chrome's `NativeMessagingHosts` directory. It
-contains an absolute path and your extension ID, so it is generated locally and
-never committed.
+contains an absolute path, so it is generated locally and never committed.
 
-If you loaded the extension into several profiles, pass every ID:
-
-```bash
-npm run install-host -- --extension-id <ID1> --extension-id <ID2>
-```
+The same command covers every profile on the machine: the ID identifies the
+extension, not the profile.
 
 ### 4. Name each profile
 
