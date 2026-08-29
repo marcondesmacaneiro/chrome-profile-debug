@@ -138,7 +138,7 @@ never a parameter at this layer.
 |---|---|---|
 | `profile.info` | — | `{ id, name, chromeVersion, extensionVersion }` |
 | `tabs.list` | — | `[{ tabId, windowId, title, url, active }]` |
-| `tabs.create` | `{ url? }` | `{ tabId }` |
+| `tabs.create` | `{ url?, timeoutMs? }` | `{ tabId }` |
 | `tabs.close` | `{ tabId }` | `{ closed: true }` |
 | `tabs.activate` | `{ tabId }` | `{ ok: true }` |
 | `page.navigate` | `{ tabId, url, timeoutMs? }` | `{ url, status }` |
@@ -159,6 +159,11 @@ that are off-screen or have no box report `box: null`.
 
 `ref` is a short opaque string (`ref_1`, `ref_2`, ...) stable within one
 `page.readTree` call, so callers can refer to a node without coordinates.
+
+`tabs.create` **waits for the load to settle when given a `url`**, on the same
+terms as `page.navigate`. Without that wait, a caller that creates a tab and
+immediately reads it gets an empty page reported as success — the failure mode
+that costs most, because nothing signals it is wrong.
 
 ## MCP tool surface
 

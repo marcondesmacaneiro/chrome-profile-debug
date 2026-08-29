@@ -21,6 +21,22 @@ manifest declares none. The extension cannot read page content through content
 scripts; every page interaction goes through the debugger, which Chrome
 announces with a visible banner.
 
+Be clear about what this does and does not buy you. Chrome's own details page
+still lists **"Read and change all your data on all websites"**, because the
+`debugger` permission carries that warning on its own — debugger access to a tab
+is full access to that tab, and Chrome is right to say so. What declaring no
+host permissions actually achieves is narrower and worth stating precisely:
+
+- No content script is ever injected, into any page, at any time.
+- The extension is idle until a tool call names a tab. It has no passive
+  presence on the pages you browse.
+- "Site access: this extension has no additional site access" on the details
+  page is Chrome confirming that.
+
+The warning you see is honest, and the protection is real, but they are not the
+same claim. Do not read the absent host permissions as a smaller blast radius —
+read it as no ambient access.
+
 **The debugging banner is never suppressed.** If a tab is being driven, you can
 see it.
 

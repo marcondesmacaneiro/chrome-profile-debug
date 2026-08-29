@@ -64,7 +64,10 @@ captures screenshots, dispatches input, and observes console and network events.
 The extension declares no `host_permissions` and injects no content scripts, so
 there is no lighter-weight alternative available to it. Chrome displays a
 persistent banner on any tab under debugger control, which the extension does
-not suppress.
+not suppress. Note that Chrome surfaces `debugger` to the user as "Read and
+change all your data on all websites" even with no host permissions declared;
+expect a reviewer to ask about that string, and answer that it comes from
+`debugger` itself, not from any declared host access.
 
 **`tabs`** — Needed to enumerate, create, activate and close tabs within the
 profile, and to read their title and URL so the operator can identify a target.

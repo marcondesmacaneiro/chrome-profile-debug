@@ -703,7 +703,20 @@ async function tabsList() {
 async function tabsCreate(params) {
   const url = params.url == null ? null : requireString(params, 'url');
   if (url) assertAllowedUrl(url);
-  const created = await chrome.tabs.create(url ? { url } : {});
+
+  const created = await chrome.tabs.create({});
+  if (!url) return { tabId: created.id };
+
+  // Create blank, then navigate. chrome.tabs.create resolves as soon as the tab
+  // object exists, long before its document does: returning here would make the
+  // very next page.text or page.readTree describe an empty page and report it as
+  // success. An empty result is worse than an error, because the caller believes
+  // it. pageNavigate waits for the load to settle and already handles a new tab
+  // starting on a restricted URL, so delegate rather than duplicate that.
+  const navigateParams = { tabId: created.id, url };
+  if (params.timeoutMs != null) navigateParams.timeoutMs = params.timeoutMs;
+  await pageNavigate(navigateParams);
+
   return { tabId: created.id };
 }
 
