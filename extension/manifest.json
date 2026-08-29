@@ -1,5 +1,6 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxQ+N01nC2vzD1xeFlZCmuhL3j9+PS8sq8y1BO3zCZ+EhEZqV9KLmvzWZnUcIdDU0qhSmIsJrlOtU3E0ICS0blTLOZ04aCQzAuYywT9gKG39M1dy95eQVxRm7mNxmBYPb5dPICgQjI1tmBYuXPUVuyMlOcv4zst3E5Fd8QKgm/wFDHG9tn1vm1/b5s/4uuJ6k61DjTgprmBXErp4V0KESjDH4SX7kW/hHUHjcHSc1VtstSLNWDX7ar3I6lalK2GHLf/KfvyQwDZgkP7IUiZ9IJmiT3HAQwL+XCU3+N4NmExhi6ChLmXrPPnt1JzU0HweVe/RZ4cSuQSpocK+/pIZZhQIDAQAB",
   "name": "Chrome Profile Debug",
   "version": "0.1.0",
   "description": "Expose this Chrome profile to a local MCP server under a name you choose.",
