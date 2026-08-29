@@ -6,6 +6,14 @@ people — and it solves less of that problem than it appears to, because the
 store cannot install the native messaging host. Anyone installing from the store
 still needs Node, this repository, and `npm run install-host`.
 
+## The dashboard cannot be automated by this extension
+
+Worth knowing before you try: Chrome blocks extensions from the Web Store
+domain, and that block covers `chrome.google.com/webstore/*` as well as
+`chromewebstore.google.com`. This extension refuses those URLs with
+`RESTRICTED_URL`, as it must. Submission is a manual, human step, and no
+amount of tooling changes that.
+
 ## Known review risk
 
 `page.evaluate` executes arbitrary JavaScript supplied by whatever MCP client is
