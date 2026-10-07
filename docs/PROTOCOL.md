@@ -36,16 +36,31 @@ that can exceed it (screenshots, accessibility trees) MUST be chunked — see
 
 ## Layer 2 — native host <-> MCP server
 
-Unix domain socket. Path resolution order:
+Unix domain sockets, **one per server**, so several MCP client sessions can drive
+the same profiles at once. The state directory is
+`$XDG_STATE_HOME/chrome-profile-debug/`, or `~/.local/state/chrome-profile-debug/`
+when `$XDG_STATE_HOME` is unset or relative. Each server listens on
+`bridge-<pid>.sock` in it; `$CPD_SOCKET` instead pins one shared path for the
+server and the hosts (single-server mode).
 
-1. `$CPD_SOCKET`
-2. `$XDG_STATE_HOME/chrome-profile-debug/bridge.sock`
-3. `~/.local/state/chrome-profile-debug/bridge.sock`
+The server creates the directory with mode `0700` and its socket with mode
+`0600`, and on start removes `*.sock` files that refuse connections (left by a
+server that crashed); it never removes a live socket or one it cannot probe.
 
-The server creates the parent directory with mode `0700` and the socket with
-mode `0600`. The host connects as a client and retries with exponential backoff
-(500 ms, doubling, capped at 30 s) forever — the server is frequently not
-running.
+The host connects as a client to **every** `*.sock` in the directory, rescanning
+it every 2 s for servers that start later. Each connection retries with
+exponential backoff (500 ms, doubling, capped at 30 s) until its socket file
+disappears. Routing across connections:
+
+- `hello` goes to every connected server, and is replayed on each new connection.
+- A `request` is remembered by `id`; its `response` — every chunk of it — goes
+  only to the server that sent the request. A response to an unknown `id` is
+  dropped.
+- Anything else from the extension goes to every server.
+
+Hosts from before this change connect only to the legacy `bridge.sock`; they
+pick up the new layout when Chrome restarts them (kill the host process and the
+extension reconnects).
 
 Framing is **NDJSON**: one JSON value per line, `\n`-terminated. `JSON.stringify`
 never emits a raw newline, so no escaping is needed.

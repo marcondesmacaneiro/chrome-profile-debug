@@ -11,7 +11,7 @@
 // stray byte on stdout corrupts the session.
 
 import { createServer, connect } from 'node:net';
-import { chmodSync, existsSync, mkdirSync, statSync, unlinkSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -62,11 +62,36 @@ function readPositiveInt(raw) {
 
 // --- Socket path and permissions -------------------------------------------
 
+// Every server gets its own socket, so several MCP client sessions can run at
+// once: the hosts connect to all of them. $CPD_SOCKET pins one shared path.
 function resolveSocketPath() {
   if (process.env.CPD_SOCKET) return process.env.CPD_SOCKET;
   const stateHome = process.env.XDG_STATE_HOME;
   const base = stateHome && isAbsolute(stateHome) ? stateHome : join(homedir(), '.local', 'state');
-  return join(base, 'chrome-profile-debug', 'bridge.sock');
+  return join(base, 'chrome-profile-debug', `bridge-${process.pid}.sock`);
+}
+
+// Sockets left by servers that crashed would make every host retry them
+// forever; sweep the dead ones, never a live one or one that cannot be probed.
+async function sweepStaleSockets(dir, ownPath) {
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    const candidate = join(dir, name);
+    if (!name.endsWith('.sock') || candidate === ownPath) continue;
+    try {
+      if (!statSync(candidate).isSocket()) continue;
+      if ((await probeExistingSocket(candidate)) !== 'stale') continue;
+      unlinkSync(candidate);
+      log(`removed a stale socket left at ${candidate}`);
+    } catch (err) {
+      log(`could not sweep ${candidate}: ${err.message}`);
+    }
+  }
 }
 
 // Connect to decide whether an existing socket file is live or a crash leftover.
@@ -974,6 +999,7 @@ function installCleanup(socketPath, socketServer) {
 async function main() {
   const socketPath = resolveSocketPath();
   await prepareSocketPath(socketPath);
+  if (!process.env.CPD_SOCKET) await sweepStaleSockets(dirname(socketPath), socketPath);
   const socketServer = await listenOnSocket(socketPath);
   installCleanup(socketPath, socketServer);
 
