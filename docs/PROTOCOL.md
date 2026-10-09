@@ -16,7 +16,7 @@ breaking change and must bump `PROTOCOL_VERSION`.
         │  Chrome native messaging        ← Layer 1
         │
   extension/  (one instance per Chrome profile)
-        │  chrome.debugger / chrome.tabs
+        │  chrome.debugger / chrome.tabs (chrome.scripting as fallback)
         ▼
       web page
 ```
@@ -79,7 +79,7 @@ Every message is a JSON object with a `type` field.
     "id": "8f14e45f-ceea-467a-9a3c-9c0b6ef7c0de",
     "name": "olcen",
     "chromeVersion": "141.0.7390.55",
-    "extensionVersion": "0.1.0"
+    "extensionVersion": "0.2.0"
   }
 }
 ```
@@ -179,6 +179,31 @@ that are off-screen or have no box report `box: null`.
 terms as `page.navigate`. Without that wait, a caller that creates a tab and
 immediately reads it gets an empty page reported as success — the failure mode
 that costs most, because nothing signals it is wrong.
+
+### Tabs the debugger cannot attach to
+
+Chrome refuses `chrome.debugger` on any tab that hosts a frame belonging to
+another extension ("Cannot access a chrome-extension:// URL of different
+extension"). Password managers put such a frame on most login and form pages.
+When the attach fails for that reason, the page methods run through
+`chrome.scripting` instead, with the same params and result shapes. Known
+differences on those tabs:
+
+- Input events are synthetic (`isTrusted === false`). `input.key` emulates only
+  the default actions a form needs: Enter submits, Tab moves focus, Backspace,
+  Delete, Ctrl/Cmd+A, Space on buttons and checkboxes, printable characters.
+- `page.evaluate` is subject to the page's Content-Security-Policy; a page that
+  forbids `unsafe-eval` returns `INTERNAL` saying so.
+- `page.readTree` walks the DOM rather than the accessibility tree, and
+  `backendDOMNodeId` is always `null`.
+- `page.screenshot` needs the tab to be the active one in its window, and
+  rejects `fullPage` and `webp` with `BAD_PARAMS`.
+- `page.navigate` reports `status: null`.
+- `console.read` and `network.read` have no fallback and return
+  `DEBUGGER_ATTACH_FAILED`.
+
+Only the attach decides the route. A method that started through the debugger
+never switches midway, so an input sequence is never replayed twice.
 
 ## MCP tool surface
 

@@ -1,12 +1,14 @@
 # Privacy policy
 
-*Last updated: 29 August 2026*
+*Last updated: 9 October 2026*
 
 **Chrome Profile Debug does not collect, transmit, or sell any personal data.**
 
 The extension has no server. It contains no analytics, no crash reporting, and
-no usage telemetry. It makes no network requests of its own — it has no
-`host_permissions` and cannot reach any website on its own initiative.
+no usage telemetry. It makes no network requests of its own and never reaches a
+website on its own initiative. Its host permission is used for one thing only:
+running a script in a tab that a tool call has named, when Chrome refuses the
+debugger on that tab. Nothing is ever injected into a page you merely browse.
 
 ## What the extension stores
 

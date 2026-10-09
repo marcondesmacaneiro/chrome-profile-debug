@@ -16,26 +16,28 @@ speak to such a port and read cookies for every session in that browser. A Unix
 socket at `0600` is reachable only by your user, and native messaging is not
 reachable over the network at all.
 
-**No `host_permissions`.** `chrome.debugger` does not require them, so the
-manifest declares none. The extension cannot read page content through content
-scripts; every page interaction goes through the debugger, which Chrome
-announces with a visible banner.
+**No content script, and nothing injected on its own.** Every page interaction
+goes through the debugger, which Chrome announces with a visible banner — with
+one exception. Chrome refuses the debugger on a tab that hosts a frame belonging
+to another extension, which password managers inject into most login and form
+pages. On such a tab, and only when a tool call names it, the extension runs a
+script there with `chrome.scripting`. That is the sole use of the `<all_urls>`
+host permission added in 0.2.0.
 
-Be clear about what this does and does not buy you. Chrome's own details page
-still lists **"Read and change all your data on all websites"**, because the
-`debugger` permission carries that warning on its own — debugger access to a tab
-is full access to that tab, and Chrome is right to say so. What declaring no
-host permissions actually achieves is narrower and worth stating precisely:
+Be clear about what this does and does not buy you. Chrome's details page lists
+**"Read and change all your data on all websites"**: the `debugger` permission
+carries that warning on its own, and so does the host permission. Debugger or
+script access to a tab is full access to that tab, and Chrome is right to say
+so. What the design actually achieves is narrower and worth stating precisely:
 
-- No content script is ever injected, into any page, at any time.
+- No content script is declared. Nothing runs in a page you merely browse.
 - The extension is idle until a tool call names a tab. It has no passive
   presence on the pages you browse.
-- "Site access: this extension has no additional site access" on the details
-  page is Chrome confirming that.
+- A tab driven through the scripting fallback shows **no** debugging banner,
+  because the debugger is not attached. Those are only tabs a tool call named.
 
 The warning you see is honest, and the protection is real, but they are not the
-same claim. Do not read the absent host permissions as a smaller blast radius —
-read it as no ambient access.
+same claim. Read it as no ambient access, not as a smaller blast radius.
 
 **The debugging banner is never suppressed.** If a tab is being driven, you can
 see it.
@@ -67,7 +69,8 @@ session while both sides believe otherwise.
   accessibility tree, console output — becomes context for the model, and
   travels wherever that client sends its context.
 - **`page.evaluate` runs arbitrary JavaScript** in the page's origin. It is as
-  powerful as the DevTools console.
+  powerful as the DevTools console, and on fallback tabs it runs without the
+  debugging banner.
 - **Credentials typed through `input.type` are plain strings.** They pass through
   the host and the server in memory. Neither logs message bodies, but prefer
   logging in by hand.

@@ -21,7 +21,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 const SERVER_NAME = 'chrome-profile-debug';
-const SERVER_VERSION = '0.1.0';
+const SERVER_VERSION = '0.2.0';
 const PROTOCOL_VERSION = 1;
 const DEFAULT_REQUEST_TIMEOUT_MS = readPositiveInt(process.env.CPD_REQUEST_TIMEOUT_MS) ?? 30_000;
 

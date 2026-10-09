@@ -32,7 +32,7 @@ No listening TCP port. No telemetry. No Chrome Web Store account required.
       ▲
       │ Chrome native messaging
   extension/ ───────── one instance per profile
-      │ chrome.debugger
+      │ chrome.debugger (chrome.scripting only where the debugger is refused)
       ▼
     web page
 ```

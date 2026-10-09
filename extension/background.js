@@ -7,9 +7,13 @@
  *
  * Two rules shape the whole file:
  *   1. A profile with no name never calls connectNative. Participation is opt-in.
- *   2. Page access goes through chrome.debugger only. The manifest declares no
- *      host permissions and there is no content script.
+ *   2. Page access goes through chrome.debugger. Only when Chrome refuses the
+ *      debugger because another extension's frame sits in the page does a tab
+ *      fall back to chrome.scripting (see scripting.js). Nothing is injected
+ *      into a page that the debugger can drive, and there is no content script.
  */
+
+import * as scripting from './scripting.js';
 
 const PROTOCOL_VERSION = 1;
 const HOST_NAME = 'io.github.marcondesmacaneiro.chrome_profile_debug';
@@ -419,6 +423,24 @@ async function ensureAttached(tabId) {
   return state;
 }
 
+/**
+ * Like ensureAttached, but returns null when Chrome refuses the debugger
+ * because another extension's frame sits in the page. The caller then drives
+ * the tab through chrome.scripting instead. Only the attach decides this: a
+ * method that already started through the debugger never switches midway.
+ */
+async function attachOrFallback(tabId) {
+  try {
+    return await ensureAttached(tabId);
+  } catch (error) {
+    if (!scripting.isBlockedByOtherExtension(error)) throw error;
+    // enableDomains can fail after attach succeeded; leave nothing attached.
+    sessions.delete(tabId);
+    await chrome.debugger.detach({ tabId }).catch(() => {});
+    return null;
+  }
+}
+
 async function attachDebugger(tabId) {
   try {
     await chrome.debugger.attach({ tabId }, DEBUGGER_VERSION);
@@ -748,17 +770,20 @@ async function pageNavigate(params) {
   assertAllowedUrl(url);
   const timeoutMs = positiveInt(params, 'timeoutMs', NAVIGATE_TIMEOUT_MS);
 
+  // The debugger cannot attach to a restricted page - a new tab sits on one, and
+  // reports it only as pendingUrl until it loads - nor to a page hosting another
+  // extension's frame. Those hops go through the tabs API instead. No debugger
+  // session means no document response, hence no status on that hop.
   const current = await getTab(tabId);
-  if (isRestrictedUrl(current.url)) {
-    // The debugger cannot attach to a restricted page - a new tab sits on one -
-    // so the first hop off it goes through the tabs API instead. No debugger
-    // session means no document response, hence no status on that hop.
+  const currentUrl = current.url || current.pendingUrl || '';
+  const onRestricted = currentUrl === '' || isRestrictedUrl(currentUrl);
+  const state = onRestricted ? null : await attachOrFallback(tabId);
+  if (!state) {
     await navigateWithTabsApi(tabId, url, timeoutMs);
     const moved = await getTab(tabId);
     return { url: moved.url ?? url, status: null };
   }
 
-  const state = await ensureAttached(tabId);
   const settled = waitForDebuggerEvent(state, isNavigationSettled(state), timeoutMs);
   // Mark the promise handled so a timeout raised before we await it stays quiet.
   settled.catch(() => {});
@@ -816,7 +841,10 @@ async function pageReadTree(params) {
   const maxNodes = positiveInt(params, 'maxNodes', DEFAULT_MAX_NODES);
   const interactiveOnly = Boolean(params.interactiveOnly);
 
-  const state = await ensureAttached(tabId);
+  const state = await attachOrFallback(tabId);
+  if (!state) {
+    return scripting.readTree(tabId, interactiveOnly, maxNodes, [...INTERACTIVE_ROLES]);
+  }
   if (!state.accessibilityEnabled) {
     await cdp(tabId, 'Accessibility.enable', {});
     state.accessibilityEnabled = true;
@@ -923,7 +951,12 @@ async function pageScreenshot(params) {
   if (quality != null && quality > 100) fail('BAD_PARAMS', 'quality must be between 1 and 100');
   const fullPage = Boolean(params.fullPage);
 
-  await ensureAttached(tabId);
+  if (!(await attachOrFallback(tabId))) {
+    if (fullPage || format === 'webp') {
+      fail('BAD_PARAMS', 'fullPage and webp need the debugger, which this page refuses');
+    }
+    return scripting.screenshot(tabId, format, quality);
+  }
   const metrics = await cdp(tabId, 'Page.getLayoutMetrics', {});
   const request = { format, captureBeyondViewport: fullPage };
   if (format !== 'png' && quality != null) request.quality = quality;
@@ -952,7 +985,9 @@ async function pageEvaluate(params) {
   const expression = requireString(params, 'expression');
   const awaitPromise = Boolean(params.awaitPromise);
 
-  await ensureAttached(tabId);
+  if (!(await attachOrFallback(tabId))) {
+    return { value: await scripting.evaluate(tabId, expression, awaitPromise) };
+  }
   return { value: await evaluate(tabId, expression, awaitPromise) };
 }
 
@@ -979,7 +1014,7 @@ async function pageText(params) {
   const tabId = requireTabId(params);
   const maxChars = positiveInt(params, 'maxChars', DEFAULT_MAX_CHARS);
 
-  await ensureAttached(tabId);
+  if (!(await attachOrFallback(tabId))) return scripting.text(tabId, maxChars);
   // Truncating inside the page avoids moving megabytes we would throw away.
   const expression = `(() => {
     const text = document.body ? document.body.innerText : '';
@@ -1079,7 +1114,7 @@ async function inputClick(params) {
   if (!(button in BUTTON_MASKS)) fail('BAD_PARAMS', 'button must be left, right or middle');
   const clickCount = positiveInt(params, 'clickCount', 1);
 
-  await ensureAttached(tabId);
+  if (!(await attachOrFallback(tabId))) return scripting.click(tabId, x, y, button, clickCount);
   const base = { x, y, button, modifiers: 0, pointerType: 'mouse' };
   await cdp(tabId, 'Input.dispatchMouseEvent', {
     ...base,
@@ -1107,7 +1142,7 @@ async function inputType(params) {
   const tabId = requireTabId(params);
   const text = requireString(params, 'text', true);
 
-  await ensureAttached(tabId);
+  if (!(await attachOrFallback(tabId))) return scripting.type(tabId, text);
   // Bulk text goes in with insertText; newline and tab need real key events so
   // that forms submit and focus moves the way a user would expect.
   for (const segment of text.split(/(\n|\t)/)) {
@@ -1124,7 +1159,10 @@ async function inputKey(params) {
   const key = requireString(params, 'key');
   const modifiers = normalizeModifiers(params.modifiers);
 
-  await ensureAttached(tabId);
+  if (!(await attachOrFallback(tabId))) {
+    keyDefinition(key); // same BAD_PARAMS for unknown keys as the debugger path
+    return scripting.key(tabId, key, modifiers);
+  }
   await dispatchKey(tabId, key, modifiers);
   return { ok: true };
 }
@@ -1136,7 +1174,7 @@ async function inputScroll(params) {
   const deltaX = optionalNumber(params, 'deltaX', 0);
   const deltaY = optionalNumber(params, 'deltaY', 0);
 
-  await ensureAttached(tabId);
+  if (!(await attachOrFallback(tabId))) return scripting.scroll(tabId, x, y, deltaX, deltaY);
   await cdp(tabId, 'Input.dispatchMouseEvent', {
     type: 'mouseWheel',
     x,

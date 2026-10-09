@@ -37,12 +37,15 @@ HOW IT WORKS
 The extension talks to a companion program on your own computer through
 Chrome's native messaging API. That program is open source and you install it
 yourself. No TCP port is opened. The extension has no network capability of its
-own and no host permissions, so it never injects a content script into any page
-and has no passive presence on the sites you browse.
+own and no content script, so it has no passive presence on the sites you
+browse: nothing runs in a page until a command names that tab.
 
-Page interaction goes exclusively through the Chrome DevTools Protocol, which
-means Chrome displays its debugging banner on any tab being driven. The
-extension never suppresses that banner.
+Page interaction goes through the Chrome DevTools Protocol, which means Chrome
+displays its debugging banner on any tab being driven. The extension never
+suppresses that banner. Chrome refuses the debugger on pages that host a frame
+of another extension, as password managers do on login forms; only on those
+tabs, and only when a command names them, does the extension run a script there
+instead.
 
 OPT-IN, PER PROFILE
 
@@ -110,9 +113,9 @@ extension controls.
 ## Permission justifications
 
 See `docs/STORE.md`. Expect the reviewer to ask about "Read and change all your
-data on all websites"; that string comes from the `debugger` permission alone,
-not from any declared host permission, and the details page confirms the
-extension has no additional site access.
+data on all websites"; the `debugger` permission carries that warning on its
+own, and the `<all_urls>` host permission added in 0.2.0 carries the same one.
+Both serve the same purpose: driving the tab a command names.
 
 ## Screenshots still needed
 

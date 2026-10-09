@@ -25,8 +25,8 @@ Three ways to handle it, in the order we would try them:
 
 1. Submit as-is and answer the reviewer's question directly: the code comes from
    a local process the user installed themselves over native messaging, never
-   from a network endpoint. The extension has no `host_permissions` and cannot
-   fetch anything.
+   from a network endpoint. The extension makes no network requests of its own:
+   its host permission only lets it run a script in a tab a command names.
 2. Gate `page.evaluate` behind a checkbox in the popup, off by default, so the
    published default build has no arbitrary-execution path.
 3. Drop `page.evaluate` from the published build and keep it in the unpacked
@@ -67,15 +67,22 @@ the obvious reviewer question.
 Copy these into the listing. Each must say why the permission is *necessary*,
 not merely useful.
 
-**`debugger`** — The sole mechanism by which the extension reads page structure,
-captures screenshots, dispatches input, and observes console and network events.
-The extension declares no `host_permissions` and injects no content scripts, so
-there is no lighter-weight alternative available to it. Chrome displays a
-persistent banner on any tab under debugger control, which the extension does
-not suppress. Note that Chrome surfaces `debugger` to the user as "Read and
-change all your data on all websites" even with no host permissions declared;
-expect a reviewer to ask about that string, and answer that it comes from
-`debugger` itself, not from any declared host access.
+**`debugger`** — The primary mechanism by which the extension reads page
+structure, captures screenshots, dispatches input, and observes console and
+network events. Chrome displays a persistent banner on any tab under debugger
+control, which the extension does not suppress. Chrome surfaces `debugger` to
+the user as "Read and change all your data on all websites" on its own.
+
+**`scripting`** and **host permission `<all_urls>`** — Chrome refuses
+`chrome.debugger` on any tab that contains a frame belonging to another
+extension, which password managers inject into most login and form pages.
+Without a fallback those pages cannot be driven at all. On such a tab, and only
+when a command from the user's local tooling names it, the extension runs a
+script there with `chrome.scripting.executeScript` to read the page or dispatch
+the input the command asked for, and `chrome.tabs.captureVisibleTab` for
+screenshots. There is no content script and nothing is injected into pages the
+user merely browses. The host permission must be `<all_urls>` because the user
+decides which site to automate; no fixed list could cover it.
 
 **`tabs`** — Needed to enumerate, create, activate and close tabs within the
 profile, and to read their title and URL so the operator can identify a target.
@@ -94,12 +101,18 @@ it the extension silently stops responding.
 
 ## Packaging
 
+The store rejects a manifest carrying `key`, which the repository keeps so the
+unpacked build gets the published ID. Pack a copy without it:
+
 ```bash
-cd extension && zip -r ../chrome-profile-debug-$(node -p "require('./manifest.json').version").zip . -x '.*'
+v=$(node -p "require('./extension/manifest.json').version") && tmp=$(mktemp -d) \
+  && cp -R extension/ "$tmp/" \
+  && node -e "const f=process.argv[1],m=JSON.parse(require('fs').readFileSync(f));delete m.key;require('fs').writeFileSync(f,JSON.stringify(m,null,2)+'\n')" "$tmp/manifest.json" \
+  && (cd "$tmp" && zip -r - . -x '.*') > "chrome-profile-debug-$v.zip" && rm -rf "$tmp"
 ```
 
-Verify the zip has `manifest.json` at its root, and that it contains no
-`node_modules`, no `.git`, and nothing from `host/` or `server/`.
+Verify the zip has `manifest.json` at its root, with no `key`, and that it
+contains no `node_modules`, no `.git`, and nothing from `host/` or `server/`.
 
 ## After publishing
 
