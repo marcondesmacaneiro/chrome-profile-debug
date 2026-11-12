@@ -77,6 +77,15 @@
         margin: 10px 0 0;
         overflow-wrap: anywhere;
       }
+
+      #help {
+        color: var(--muted);
+        margin: 6px 0 0;
+      }
+
+      #help a {
+        color: var(--text);
+      }
     </style>
   </head>
   <body>
@@ -87,6 +96,10 @@
       <button id="save" type="button">Save</button>
     </div>
     <p id="status">Connecting...</p>
+    <p id="help" hidden>
+      The companion host is a separate install.
+      <a href="https://github.com/marcondesmacaneiro/chrome-profile-debug#install" target="_blank" rel="noreferrer">Setup instructions</a>
+    </p>
     <script src="popup.js"></script>
   </body>
 </html>

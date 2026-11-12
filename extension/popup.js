@@ -10,17 +10,20 @@ const STATUS_POLL_MS = 1000;
 const nameInput = document.getElementById('profile-name');
 const saveButton = document.getElementById('save');
 const statusLine = document.getElementById('status');
+const helpLine = document.getElementById('help');
 
 let nameTouched = false;
 
 function statusText(status) {
   if (!status || status.state === 'unnamed') return 'Not named — this profile is not exposed';
   if (status.state === 'connected') return `Connected as ${status.name}`;
+  if (status.error) return `Not connected: ${status.error}`;
   return 'Connecting...';
 }
 
 function render(status) {
   statusLine.textContent = statusText(status);
+  helpLine.hidden = !status?.error;
   // Never overwrite what the user is in the middle of typing.
   if (!nameTouched && document.activeElement !== nameInput) {
     nameInput.value = status?.name ?? '';

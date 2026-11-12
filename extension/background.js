@@ -133,6 +133,8 @@ let port = null;
 let connectingPromise = null;
 let reconnectTimer = null;
 let reconnectDelayMs = RECONNECT_MIN_MS;
+// Chrome's own reason for the last failed connection, shown by the popup.
+let lastFailure = null;
 
 /** Opens the native port unless the profile is unnamed or already connected. */
 async function ensureConnected() {
@@ -156,6 +158,7 @@ async function openPort() {
   } catch (error) {
     // The host manifest may not be installed yet; keep trying in the background.
     console.debug('[cpd] connectNative failed:', messageOf(error));
+    lastFailure = messageOf(error);
     scheduleReconnect();
     return;
   }
@@ -180,6 +183,7 @@ function onPortDisconnected(disconnected) {
   // Ignore stale ports we already replaced or closed on purpose.
   if (port !== disconnected) return;
   port = null;
+  lastFailure = lastError?.message ?? 'Native host has exited.';
   scheduleReconnect();
 }
 
@@ -1265,7 +1269,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 async function connectionStatus() {
   const { profileName } = await readIdentity();
   if (!profileName) return { state: 'unnamed', name: '' };
-  return { state: port ? 'connected' : 'connecting', name: profileName };
+  if (port) return { state: 'connected', name: profileName };
+  return { state: 'connecting', name: profileName, error: lastFailure };
 }
 
 async function setProfileName(rawName) {
