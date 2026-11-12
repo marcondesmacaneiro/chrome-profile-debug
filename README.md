@@ -52,9 +52,9 @@ cd chrome-profile-debug
 npm install
 ```
 
-Keep the directory where it is. An unpacked extension's ID is derived from its
-absolute path, and the native messaging manifest pins that ID — moving the
-folder breaks the link until you re-run the installer.
+Keep the directory where it is. The native messaging manifest written in step 3
+points at an absolute path inside it (`host/run-host.sh`), so moving the folder
+breaks the link until you re-run the installer.
 
 ### 2. Load the extension into each profile you want to drive
 
@@ -89,6 +89,10 @@ contains an absolute path, so it is generated locally and never committed.
 The same command covers every profile on the machine: the ID identifies the
 extension, not the profile.
 
+A profile named before this step shows `Not connected: Specified native
+messaging host not found.` in its popup. It retries on its own within 30
+seconds; click **Save** in the popup to reconnect right away.
+
 ### 4. Name each profile
 
 Click the extension icon in a profile and give it a name — `staging`,
@@ -100,8 +104,14 @@ never connects**, which is what makes participation opt-in.
 Claude Code:
 
 ```bash
-claude mcp add chrome-profile-debug -- node /absolute/path/to/chrome-profile-debug/server/index.js
+claude mcp add --scope user chrome-profile-debug -- node /absolute/path/to/chrome-profile-debug/server/index.js
 ```
+
+`--scope user` makes the tools available in every directory. Without it, Claude
+Code registers the server only for the directory you ran the command in.
+
+The server only sees profiles on the machine it runs on: run your MCP client on
+the same computer as the browser.
 
 Any other client: run `server/index.js` over stdio.
 
@@ -128,6 +138,21 @@ Any other client: run `server/index.js` over stdio.
 **A profile does not appear in `list_profiles`.** Check, in order: the extension
 is loaded in that profile; it has a name in the popup; the native host manifest
 lists that profile's extension ID; the MCP server is running.
+
+**The popup reads `Not connected: ...`.** The text after the colon is Chrome's
+own reason:
+
+- `Specified native messaging host not found.` — step 3 has not run on this
+  machine, or it wrote to another browser's directory.
+- `Access to the specified native messaging host is forbidden.` — the host
+  manifest does not list this extension's ID. Re-run step 3 with
+  `--extension-id clkflehjfcefahjgchgcomflocccphnj`.
+- `Native host has exited.` — the host started and died. Run
+  `host/run-host.sh` by hand to see the error.
+
+On Linux, the installer covers Google Chrome's `.deb` package. A Chromium
+**snap** or a **Flatpak** browser is sandboxed and cannot launch a host
+installed this way.
 
 **`DEBUGGER_BUSY`.** Chrome allows one debugger client per tab. Close DevTools
 on that tab.

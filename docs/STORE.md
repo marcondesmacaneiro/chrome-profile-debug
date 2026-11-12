@@ -70,19 +70,24 @@ not merely useful.
 **`debugger`** — The primary mechanism by which the extension reads page
 structure, captures screenshots, dispatches input, and observes console and
 network events. Chrome displays a persistent banner on any tab under debugger
-control, which the extension does not suppress. Chrome surfaces `debugger` to
-the user as "Read and change all your data on all websites" on its own.
+control, which the extension does not suppress. Only on a tab where Chrome
+refuses the debugger does the extension fall back to chrome.scripting, as
+described under the scripting and host permission justifications.
 
-**`scripting`** and **host permission `<all_urls>`** — Chrome refuses
-`chrome.debugger` on any tab that contains a frame belonging to another
-extension, which password managers inject into most login and form pages.
-Without a fallback those pages cannot be driven at all. On such a tab, and only
-when a command from the user's local tooling names it, the extension runs a
-script there with `chrome.scripting.executeScript` to read the page or dispatch
-the input the command asked for, and `chrome.tabs.captureVisibleTab` for
-screenshots. There is no content script and nothing is injected into pages the
-user merely browses. The host permission must be `<all_urls>` because the user
-decides which site to automate; no fixed list could cover it.
+**`scripting`** — Chrome refuses chrome.debugger on any tab that contains a
+frame belonging to another extension, which password managers inject into most
+login and form pages. Without a fallback those pages cannot be driven at all. On
+such a tab, and only when a command from the user's own local tooling names it,
+the extension runs a script there with chrome.scripting.executeScript to read
+the page or dispatch the input the command asked for. There is no content
+script, and nothing is injected into pages the user merely browses.
+
+**Host permission `<all_urls>`** — The host permission lets the extension run
+that fallback script (chrome.scripting.executeScript) and capture screenshots
+(chrome.tabs.captureVisibleTab) on a tab where Chrome refuses the debugger, and
+only when the user's local tooling names that tab. It must be <all_urls>
+because the user decides which site to automate; no fixed list could cover it.
+The extension makes no network requests of its own.
 
 **`tabs`** — Needed to enumerate, create, activate and close tabs within the
 profile, and to read their title and URL so the operator can identify a target.
