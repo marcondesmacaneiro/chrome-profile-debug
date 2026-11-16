@@ -194,3 +194,33 @@ test('two servers run side by side and sweep the socket of a dead one', async (t
   const sockets = readdirSync(dir).filter((name) => name.endsWith('.sock')).sort();
   assert.deepEqual(sockets, [`bridge-${first.pid}.sock`, `bridge-${second.pid}.sock`].sort());
 });
+
+test('the server leaves when the session that started it dies', async (t) => {
+  const { state } = makeStateHome();
+  let serverPid;
+  const alive = () => {
+    try {
+      process.kill(serverPid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  t.after(() => {
+    if (serverPid && alive()) process.kill(serverPid, 'SIGKILL');
+    rmSync(state, { recursive: true, force: true });
+  });
+
+  // SIGKILL on the parent is a Claude session closed by Ctrl-C, kill or a closed terminal:
+  // nobody calls close() on the transport, so only the broken pipes tell the server.
+  const server = JSON.stringify(path.join(root, 'server', 'index.js'));
+  const parent = spawn(process.execPath, ['-e', `
+    const child = require('node:child_process').spawn(process.execPath, [${server}], { stdio: 'pipe' });
+    child.stderr.on('data', (chunk) => { if (String(chunk).includes('ready')) console.log(child.pid); });
+  `], { env: { ...process.env, XDG_STATE_HOME: state, CPD_SOCKET: '' }, stdio: ['ignore', 'pipe', 'inherit'] });
+  const [line] = await within(once(parent.stdout, 'data'), 8_000);
+  serverPid = Number(String(line).trim());
+  parent.kill('SIGKILL');
+
+  await waitFor(() => !alive(), 8_000);
+});

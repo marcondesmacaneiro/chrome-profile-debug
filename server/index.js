@@ -1006,10 +1006,22 @@ async function main() {
   socketServer.on('error', (err) => log(`bridge socket error: ${err.message}`));
 
   // The bridge is worthless without the client; leave when it detaches.
-  mcp.onclose = () => {
+  const leave = () => {
     log('the MCP client disconnected, exiting');
     process.exit(0);
   };
+  mcp.onclose = leave;
+  // StdioServerTransport never notices a client that died without close() (Ctrl-C, kill,
+  // closed terminal): stdin just ends and the pipes break. Unhandled, the server lived on
+  // as an orphan, spinning on EPIPE through the uncaughtException handler below (139 of
+  // them on one Mac, load 660, 16/11/2026). The parent check covers pipes still held open.
+  process.stdin.on('end', leave);
+  process.stdin.on('close', leave);
+  for (const stream of [process.stdout, process.stderr]) {
+    stream.on('error', (err) => err.code === 'EPIPE' && process.exit(0));
+  }
+  const parentPid = process.ppid;
+  setInterval(() => process.ppid !== parentPid && leave(), 2_000).unref();
 
   await mcp.connect(new StdioServerTransport());
   log(`ready — MCP on stdio, bridge listening on ${socketPath} (mode 0600)`);
